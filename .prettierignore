@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+build
+.next
+out
+.nuxt
+.cache
+
+# Nx
+.nx/cache
+.nx/workspace-data
+
+# Testing
+coverage
+.nyc_output
+
+# Logs
+*.log
+logs
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Lock files
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Generated files
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
