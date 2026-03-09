@@ -2,6 +2,18 @@ import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { useState } from 'react';
 import { getDb, listTransactions, listAccounts, listCategoriesHierarchical, updateTransactionCategory } from '@om/db';
+import { Card } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
+import { Badge } from '~/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '~/components/ui/table';
+import { CategoryCombobox } from '~/components/category-combobox';
 
 const getTransactionsData = createServerFn({ method: 'GET' }).handler(
   async () => {
@@ -56,25 +68,25 @@ function TransactionsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Transactions</h1>
-        <span className="text-sm text-slate-500">
+        <h1 className="text-2xl font-bold text-foreground">Transactions</h1>
+        <span className="text-sm text-muted-foreground">
           {filtered.length} of {transactions.length} transactions
         </span>
       </div>
 
       {/* Filters */}
       <div className="flex gap-4 flex-wrap">
-        <input
+        <Input
           type="text"
           placeholder="Search descriptions..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="px-3 py-2 border border-slate-300 rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-64"
         />
         <select
           value={accountFilter}
           onChange={(e) => setAccountFilter(e.target.value)}
-          className="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <option value="">All Accounts</option>
           {accounts.map((acc) => (
@@ -83,114 +95,147 @@ function TransactionsPage() {
             </option>
           ))}
         </select>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All Categories</option>
-          {categories.map((group) => (
-            <optgroup key={group.id} label={group.name}>
-              <option value={group.id}>{group.name} (all)</option>
-              {group.children.map((child) => (
-                <option key={child.id} value={child.id}>
-                  {child.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+        <CategoryCombobox
+          categories={categories}
+          value={categoryFilter || null}
+          onSelect={(id) => setCategoryFilter(id ?? '')}
+          placeholder="All Categories"
+          className="w-[220px]"
+        />
       </div>
 
       {/* Transaction Table */}
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase">
-                Date
-              </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase">
-                Description
-              </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase">
-                Category
-              </th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase">
-                Amount
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-muted-foreground">
                   No transactions found.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               filtered.map((txn) => (
-                <tr
-                  key={txn.id}
-                  className="border-b border-slate-100 hover:bg-slate-50"
-                >
-                  <td className="px-4 py-3 text-sm text-slate-600">
+                <TableRow key={txn.id}>
+                  <TableCell className="text-muted-foreground">
                     {txn.date}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell>
                     <Link
                       to="/transactions/$id"
                       params={{ id: txn.id }}
-                      className="text-sm text-slate-900 hover:text-blue-600 no-underline"
+                      className="text-sm text-foreground hover:text-primary no-underline"
                     >
                       {txn.description}
                     </Link>
                     {txn.isTransfer && (
-                      <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                      <Badge variant="outline" className="ml-2 text-amber-700 border-amber-300 bg-amber-50">
                         Transfer
-                      </span>
+                      </Badge>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={txn.categoryId ?? ''}
-                      onChange={async (e) => {
-                        const categoryId = e.target.value || null;
-                        if (categoryId) {
-                          await assignCategory({
-                            data: { txnId: txn.id, categoryId },
-                          });
-                          router.invalidate();
-                        }
-                      }}
-                      className="w-full px-2 py-1 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Uncategorized</option>
-                      {categories.map((group) => (
-                        <optgroup key={group.id} label={group.name}>
-                          <option value={group.id}>{group.name} (general)</option>
-                          {group.children.map((child) => (
-                            <option key={child.id} value={child.id}>
-                              {child.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-sm font-medium text-right ${
+                  </TableCell>
+                  <TableCell>
+                    <CategoryCell
+                      txnId={txn.id}
+                      categoryId={txn.categoryId}
+                      categoryName={txn.categoryName}
+                      categoryColor={txn.categoryColor}
+                      categories={categories}
+                      onAssigned={() => router.invalidate()}
+                    />
+                  </TableCell>
+                  <TableCell
+                    className={`text-right font-medium ${
                       txn.amount >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}
                   >
                     {formatCents(txn.amount)}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
     </div>
+  );
+}
+
+function CategoryCell({
+  txnId,
+  categoryId,
+  categoryName,
+  categoryColor,
+  categories,
+  onAssigned,
+}: {
+  txnId: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryColor: string | null;
+  categories: ReturnType<typeof Route.useLoaderData>['categories'];
+  onAssigned: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <CategoryCombobox
+        categories={categories}
+        value={categoryId}
+        onSelect={async (newCategoryId) => {
+          if (newCategoryId) {
+            await assignCategory({
+              data: { txnId, categoryId: newCategoryId },
+            });
+            onAssigned();
+          }
+          setEditing(false);
+        }}
+        placeholder="Select category..."
+        className="w-[200px] h-8 text-xs"
+      />
+    );
+  }
+
+  if (categoryId && categoryName) {
+    return (
+      <Badge
+        variant="secondary"
+        className="cursor-pointer gap-1.5 hover:bg-secondary/80"
+        onClick={() => setEditing(true)}
+      >
+        <span
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ backgroundColor: categoryColor ?? '#9E9E9E' }}
+        />
+        {categoryName}
+      </Badge>
+    );
+  }
+
+  return (
+    <CategoryCombobox
+      categories={categories}
+      value={null}
+      onSelect={async (newCategoryId) => {
+        if (newCategoryId) {
+          await assignCategory({
+            data: { txnId, categoryId: newCategoryId },
+          });
+          onAssigned();
+        }
+      }}
+      placeholder="Select category..."
+      className="w-[200px] h-8 text-xs"
+    />
   );
 }

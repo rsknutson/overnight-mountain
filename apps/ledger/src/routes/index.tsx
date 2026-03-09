@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { getDb, getLatestTransactionMonth, getMonthlySummary, listTransactions, seedCategories } from '@om/db';
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 
 const getDashboardData = createServerFn({ method: 'GET' }).handler(async () => {
   const db = getDb();
@@ -34,8 +35,8 @@ function Dashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">
           {new Date(currentMonth + '-01').toLocaleDateString('en-US', {
             month: 'long',
             year: 'numeric',
@@ -63,17 +64,17 @@ function Dashboard() {
         <SummaryCard
           label="Transactions"
           value={String(summary.transactionCount)}
-          className="text-slate-900"
+          className="text-foreground"
         />
       </div>
 
       {/* Category Breakdown */}
       {summary.byCategory.length > 0 && (
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
-            Spending by Category
-          </h2>
-          <div className="space-y-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Spending by Category</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             {summary.byCategory
               .filter((c) => c.total < 0)
               .map((cat) => (
@@ -83,59 +84,61 @@ function Dashboard() {
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: cat.categoryColor ?? '#9E9E9E' }}
                     />
-                    <span className="text-sm text-slate-700">
+                    <span className="text-sm text-foreground">
                       {cat.categoryName ?? 'Uncategorized'}
                     </span>
-                    <span className="text-xs text-slate-400">({cat.count})</span>
+                    <span className="text-xs text-muted-foreground">({cat.count})</span>
                   </div>
-                  <span className="text-sm font-medium text-slate-900">
+                  <span className="text-sm font-medium text-foreground">
                     {formatCents(cat.total)}
                   </span>
                 </div>
               ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Recent Transactions */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">
-          Recent Transactions
-        </h2>
-        {recentTransactions.length === 0 ? (
-          <p className="text-slate-500 text-sm">
-            No transactions yet. Import a CSV to get started.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {recentTransactions.map((txn) => (
-              <div
-                key={txn.id}
-                className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
-              >
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    {txn.description}
-                  </p>
-                  <p className="text-xs text-slate-500">{txn.date}</p>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Recent Transactions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentTransactions.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No transactions yet. Import a CSV to get started.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {recentTransactions.map((txn) => (
+                <div
+                  key={txn.id}
+                  className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {txn.description}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{txn.date}</p>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className={`text-sm font-medium ${
+                        txn.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {formatCents(txn.amount)}
+                    </p>
+                    {txn.categoryName && (
+                      <p className="text-xs text-muted-foreground">{txn.categoryName}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p
-                    className={`text-sm font-medium ${
-                      txn.amount >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {formatCents(txn.amount)}
-                  </p>
-                  {txn.categoryName && (
-                    <p className="text-xs text-slate-400">{txn.categoryName}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -150,9 +153,11 @@ function SummaryCard({
   className: string;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-4">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${className}`}>{value}</p>
-    </div>
+    <Card>
+      <CardContent className="pt-6">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className={`text-2xl font-bold mt-1 ${className}`}>{value}</p>
+      </CardContent>
+    </Card>
   );
 }

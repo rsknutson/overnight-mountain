@@ -48,6 +48,7 @@ const DEFAULT_CATEGORIES: CategorySeed[] = [
       { name: 'HVAC' },
       { name: 'Landscaping' },
       { name: 'Appliance Repair' },
+      { name: 'Janitorial / House Cleaning' },
       { name: 'General Repairs' },
     ],
   },

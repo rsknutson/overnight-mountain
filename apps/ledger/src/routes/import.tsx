@@ -13,6 +13,8 @@ import {
   bulkInsertTransactions,
   getAutoCategorizeSetting,
 } from '@om/db';
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import { Button } from '~/components/ui/button';
 
 const importTransactions = createServerFn({ method: 'POST' })
   .inputValidator((data: { csvText: string; fileName: string }) => data)
@@ -138,14 +140,14 @@ function ImportPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Import Transactions</h1>
+      <h1 className="text-2xl font-bold text-foreground">Import Transactions</h1>
 
       {/* Dropzone */}
       <div
         className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
           dragOver
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-slate-300 hover:border-slate-400'
+            ? 'border-primary bg-primary/5'
+            : 'border-border hover:border-muted-foreground'
         }`}
         onDragOver={(e) => {
           e.preventDefault();
@@ -164,66 +166,65 @@ function ImportPage() {
           input.click();
         }}
       >
-        <p className="text-slate-600 text-lg">
+        <p className="text-foreground text-lg">
           Drop a Chase CSV file here, or click to browse
         </p>
-        <p className="text-slate-400 text-sm mt-2">
+        <p className="text-muted-foreground text-sm mt-2">
           Supports Chase checking and credit card statements
         </p>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
-          {error}
-        </div>
+        <Card className="border-destructive bg-destructive/10">
+          <CardContent className="pt-4 text-destructive text-sm">
+            {error}
+          </CardContent>
+        </Card>
       )}
 
       {/* Preview */}
       {preview && (
-        <div className="bg-white rounded-lg border border-slate-200 p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                Preview: {preview.fileName}
-              </h2>
-              <p className="text-sm text-slate-500">
-                {preview.lines - 1} transactions found
-              </p>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">
+                  Preview: {preview.fileName}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {preview.lines - 1} transactions found
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setPreview(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirm} disabled={loading}>
+                  {loading ? 'Importing...' : 'Confirm Import'}
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPreview(null)}
-                className="px-4 py-2 text-sm text-slate-600 bg-slate-100 rounded-md hover:bg-slate-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={loading}
-                className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? 'Importing...' : 'Confirm Import'}
-              </button>
-            </div>
-          </div>
-        </div>
+          </CardHeader>
+        </Card>
       )}
 
       {/* Result */}
       {result && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6 space-y-2">
-          <h2 className="text-lg font-semibold text-green-800">
-            Import Complete
-          </h2>
-          <p className="text-sm text-green-700">
-            File: {result.fileName} ({result.format})
-          </p>
-          <p className="text-sm text-green-700">
-            Parsed: {result.totalParsed} | Inserted: {result.inserted} |
-            Skipped (duplicates): {result.skipped}
-          </p>
-        </div>
+        <Card className="border-green-300 bg-green-50">
+          <CardContent className="pt-6 space-y-2">
+            <h2 className="text-lg font-semibold text-green-800">
+              Import Complete
+            </h2>
+            <p className="text-sm text-green-700">
+              File: {result.fileName} ({result.format})
+            </p>
+            <p className="text-sm text-green-700">
+              Parsed: {result.totalParsed} | Inserted: {result.inserted} |
+              Skipped (duplicates): {result.skipped}
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

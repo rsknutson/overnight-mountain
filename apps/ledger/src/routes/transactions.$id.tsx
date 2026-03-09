@@ -8,6 +8,11 @@ import {
   updateTransactionCategory,
   createCategoryRule,
 } from '@om/db';
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import { Button } from '~/components/ui/button';
+import { Label } from '~/components/ui/label';
+import { Separator } from '~/components/ui/separator';
+import { CategoryCombobox } from '~/components/category-combobox';
 
 const getTransactionDetail = createServerFn({ method: 'GET' })
   .inputValidator((data: { id: string }) => data)
@@ -78,104 +83,95 @@ function TransactionDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Transaction Detail</h1>
+      <h1 className="text-2xl font-bold text-foreground">Transaction Detail</h1>
 
-      <div className="bg-white rounded-lg border border-slate-200 p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs text-slate-500 uppercase">Date</label>
-            <p className="text-sm font-medium text-slate-900">
-              {transaction.date}
-            </p>
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase">Date</Label>
+              <p className="text-sm font-medium text-foreground mt-1">
+                {transaction.date}
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase">Amount</Label>
+              <p
+                className={`text-sm font-medium mt-1 ${
+                  transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}
+              >
+                {formatCents(transaction.amount)}
+              </p>
+            </div>
+            <div className="col-span-2">
+              <Label className="text-xs text-muted-foreground uppercase">
+                Description
+              </Label>
+              <p className="text-sm font-medium text-foreground mt-1">
+                {transaction.description}
+              </p>
+            </div>
+            {transaction.rawDescription &&
+              transaction.rawDescription !== transaction.description && (
+                <div className="col-span-2">
+                  <Label className="text-xs text-muted-foreground uppercase">
+                    Raw Description
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {transaction.rawDescription}
+                  </p>
+                </div>
+              )}
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase">
+                Current Category
+              </Label>
+              <p className="text-sm font-medium text-foreground mt-1">
+                {transaction.categoryName ?? 'Uncategorized'}
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase">
+                Category Source
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                {transaction.categorySource ?? '—'}
+              </p>
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-slate-500 uppercase">Amount</label>
-            <p
-              className={`text-sm font-medium ${
-                transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}
-            >
-              {formatCents(transaction.amount)}
-            </p>
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs text-slate-500 uppercase">
-              Description
-            </label>
-            <p className="text-sm font-medium text-slate-900">
-              {transaction.description}
-            </p>
-          </div>
-          {transaction.rawDescription &&
-            transaction.rawDescription !== transaction.description && (
-              <div className="col-span-2">
-                <label className="text-xs text-slate-500 uppercase">
-                  Raw Description
-                </label>
-                <p className="text-sm text-slate-600">
-                  {transaction.rawDescription}
-                </p>
-              </div>
-            )}
-          <div>
-            <label className="text-xs text-slate-500 uppercase">
-              Current Category
-            </label>
-            <p className="text-sm font-medium text-slate-900">
-              {transaction.categoryName ?? 'Uncategorized'}
-            </p>
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 uppercase">
-              Category Source
-            </label>
-            <p className="text-sm text-slate-600">
-              {transaction.categorySource ?? '—'}
-            </p>
-          </div>
-        </div>
 
-        <hr className="border-slate-200" />
+          <Separator />
 
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">
-            Update Category
-          </h3>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-          >
-            <option value="">Select a category</option>
-            {categories.map((group) => (
-              <optgroup key={group.id} label={group.name}>
-                <option value={group.id}>{group.name} (general)</option>
-                {group.children.map((child) => (
-                  <option key={child.id} value={child.id}>
-                    {child.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={createRule}
-              onChange={(e) => setCreateRule(e.target.checked)}
-              className="rounded border-slate-300"
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">
+              Update Category
+            </h3>
+            <CategoryCombobox
+              categories={categories}
+              value={selectedCategory || null}
+              onSelect={(id) => setSelectedCategory(id ?? '')}
+              placeholder="Select a category..."
+              className="w-full"
             />
-            Create rule for future transactions with this description
-          </label>
-          <button
-            onClick={handleSave}
-            disabled={!selectedCategory || saving}
-            className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save Category'}
-          </button>
-        </div>
-      </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={createRule}
+                onChange={(e) => setCreateRule(e.target.checked)}
+                className="rounded border-input"
+              />
+              Create rule for future transactions with this description
+            </label>
+            <Button
+              onClick={handleSave}
+              disabled={!selectedCategory || saving}
+            >
+              {saving ? 'Saving...' : 'Save Category'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -9,6 +9,9 @@ import {
   undismissTransferPair,
   getTransaction,
 } from '@om/db';
+import { Card, CardContent } from '~/components/ui/card';
+import { Button } from '~/components/ui/button';
+import { Badge } from '~/components/ui/badge';
 
 const getTransfersData = createServerFn({ method: 'GET' }).handler(
   async () => {
@@ -106,22 +109,17 @@ function TransfersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Transfers</h1>
-        <button
-          onClick={handleDetect}
-          className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700"
-        >
-          Detect Transfers
-        </button>
+        <h1 className="text-2xl font-bold text-foreground">Transfers</h1>
+        <Button onClick={handleDetect}>Detect Transfers</Button>
       </div>
 
       {/* Pending */}
       <div>
-        <h2 className="text-lg font-semibold text-slate-900 mb-3">
+        <h2 className="text-lg font-semibold text-foreground mb-3">
           Pending Review ({pendingPairs.length})
         </h2>
         {pendingPairs.length === 0 ? (
-          <p className="text-sm text-slate-500">No pending transfer pairs.</p>
+          <p className="text-sm text-muted-foreground">No pending transfer pairs.</p>
         ) : (
           <div className="space-y-3">
             {pendingPairs.map((pair) => (
@@ -139,7 +137,7 @@ function TransfersPage() {
       {/* Confirmed */}
       {confirmedPairs.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 mb-3">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Confirmed ({confirmedPairs.length})
           </h2>
           <div className="space-y-3">
@@ -153,7 +151,7 @@ function TransfersPage() {
       {/* Dismissed */}
       {dismissedPairs.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 mb-3">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
             Dismissed ({dismissedPairs.length})
           </h2>
           <div className="space-y-3 opacity-60">
@@ -183,65 +181,65 @@ function TransferCard({
   onUndismiss?: () => void;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-slate-900">
-          {formatCents(pair.amount)}
-        </span>
-        <span
-          className={`text-xs px-2 py-0.5 rounded ${
-            pair.status === 'confirmed'
-              ? 'bg-green-100 text-green-700'
-              : pair.status === 'dismissed'
-                ? 'bg-slate-100 text-slate-500'
-                : 'bg-amber-100 text-amber-700'
-          }`}
-        >
-          {pair.status}
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-xs text-slate-500">Checking (Debit)</p>
-          <p className="text-slate-700">
-            {pair.checkingTxn?.description ?? 'Unknown'}
-          </p>
-          <p className="text-xs text-slate-400">{pair.checkingTxn?.date}</p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-500">Credit Card (Credit)</p>
-          <p className="text-slate-700">
-            {pair.creditTxn?.description ?? 'Unknown'}
-          </p>
-          <p className="text-xs text-slate-400">{pair.creditTxn?.date}</p>
-        </div>
-      </div>
-      {onConfirm && onDismiss && (
-        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
-          <button
-            onClick={onConfirm}
-            className="px-3 py-1.5 text-sm text-white bg-green-600 rounded hover:bg-green-700"
+    <Card>
+      <CardContent className="pt-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-medium text-foreground">
+            {formatCents(pair.amount)}
+          </span>
+          <Badge
+            variant={
+              pair.status === 'confirmed'
+                ? 'default'
+                : pair.status === 'dismissed'
+                  ? 'secondary'
+                  : 'outline'
+            }
+            className={
+              pair.status === 'confirmed'
+                ? 'bg-green-600'
+                : pair.status === 'pending'
+                  ? 'text-amber-700 border-amber-300 bg-amber-50'
+                  : ''
+            }
           >
-            Confirm Transfer
-          </button>
-          <button
-            onClick={onDismiss}
-            className="px-3 py-1.5 text-sm text-slate-600 bg-slate-100 rounded hover:bg-slate-200"
-          >
-            Dismiss
-          </button>
+            {pair.status}
+          </Badge>
         </div>
-      )}
-      {pair.status === 'dismissed' && onUndismiss && (
-        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
-          <button
-            onClick={onUndismiss}
-            className="px-3 py-1.5 text-sm text-slate-700 bg-slate-200 rounded hover:bg-slate-300"
-          >
-            Undismiss
-          </button>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground">Checking (Debit)</p>
+            <p className="text-foreground">
+              {pair.checkingTxn?.description ?? 'Unknown'}
+            </p>
+            <p className="text-xs text-muted-foreground">{pair.checkingTxn?.date}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Credit Card (Credit)</p>
+            <p className="text-foreground">
+              {pair.creditTxn?.description ?? 'Unknown'}
+            </p>
+            <p className="text-xs text-muted-foreground">{pair.creditTxn?.date}</p>
+          </div>
         </div>
-      )}
-    </div>
+        {onConfirm && onDismiss && (
+          <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+            <Button size="sm" onClick={onConfirm} className="bg-green-600 hover:bg-green-700">
+              Confirm Transfer
+            </Button>
+            <Button variant="secondary" size="sm" onClick={onDismiss}>
+              Dismiss
+            </Button>
+          </div>
+        )}
+        {pair.status === 'dismissed' && onUndismiss && (
+          <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+            <Button variant="secondary" size="sm" onClick={onUndismiss}>
+              Undismiss
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -8,6 +8,11 @@ import {
   updateCategory as updateCategoryDb,
   deleteCategory as deleteCategoryDb,
 } from '@om/db';
+import { Card } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
+import { Button } from '~/components/ui/button';
+import { Badge } from '~/components/ui/badge';
+import { Label } from '~/components/ui/label';
 
 const getCategoriesData = createServerFn({ method: 'GET' }).handler(
   async () => {
@@ -93,27 +98,27 @@ function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Categories</h1>
+      <h1 className="text-2xl font-bold text-foreground">Categories</h1>
 
       {/* Add Category */}
-      <div className="bg-white rounded-lg border border-slate-200 p-4 flex gap-3 items-end flex-wrap">
+      <Card className="p-4 flex gap-3 items-end flex-wrap">
         <div className="flex-1 min-w-48">
-          <label className="text-xs text-slate-500 uppercase">Name</label>
-          <input
+          <Label className="text-xs text-muted-foreground uppercase">Name</Label>
+          <Input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="New category name"
-            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+            className="mt-1"
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           />
         </div>
         <div>
-          <label className="text-xs text-slate-500 uppercase">Parent</label>
+          <Label className="text-xs text-muted-foreground uppercase">Parent</Label>
           <select
             value={newParentId ?? ''}
             onChange={(e) => setNewParentId(e.target.value || null)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+            className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <option value="">None (top-level)</option>
             {parents.map((p) => (
@@ -124,24 +129,19 @@ function CategoriesPage() {
           </select>
         </div>
         <div>
-          <label className="text-xs text-slate-500 uppercase">Color</label>
+          <Label className="text-xs text-muted-foreground uppercase">Color</Label>
           <input
             type="color"
             value={newColor}
             onChange={(e) => setNewColor(e.target.value)}
-            className="w-10 h-10 rounded border border-slate-300 cursor-pointer"
+            className="mt-1 w-10 h-10 rounded border border-input cursor-pointer"
           />
         </div>
-        <button
-          onClick={handleAdd}
-          className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700"
-        >
-          Add
-        </button>
-      </div>
+        <Button onClick={handleAdd}>Add</Button>
+      </Card>
 
       {/* Categories List - Hierarchical */}
-      <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+      <Card className="divide-y divide-border">
         {parents.map((cat) => (
           <div key={cat.id}>
             <CategoryRow
@@ -173,7 +173,7 @@ function CategoriesPage() {
             ))}
           </div>
         ))}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -219,27 +219,21 @@ function CategoryRow({
             type="color"
             value={editColor}
             onChange={(e) => setEditColor(e.target.value)}
-            className="w-8 h-8 rounded border border-slate-300 cursor-pointer"
+            className="w-8 h-8 rounded border border-input cursor-pointer"
           />
-          <input
+          <Input
             type="text"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            className="flex-1 px-2 py-1 border border-slate-300 rounded text-sm"
+            className="flex-1"
             onKeyDown={(e) => e.key === 'Enter' && onEdit(cat.id)}
           />
-          <button
-            onClick={() => onEdit(cat.id)}
-            className="text-sm text-blue-600 hover:text-blue-700"
-          >
+          <Button variant="ghost" size="sm" onClick={() => onEdit(cat.id)}>
             Save
-          </button>
-          <button
-            onClick={() => setEditingId(null)}
-            className="text-sm text-slate-500 hover:text-slate-700"
-          >
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
             Cancel
-          </button>
+          </Button>
         </div>
       ) : (
         <>
@@ -249,37 +243,38 @@ function CategoryRow({
               style={{ backgroundColor: cat.color ?? '#9E9E9E' }}
             />
             <span
-              className={`text-sm font-medium ${indent === 1 ? 'text-slate-700' : 'text-slate-900'}`}
+              className={`text-sm font-medium ${indent === 1 ? 'text-muted-foreground' : 'text-foreground'}`}
             >
               {cat.name}
             </span>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               {cat.transactionCount} transactions
             </span>
             {cat.isSystem && (
-              <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
-                System
-              </span>
+              <Badge variant="secondary">System</Badge>
             )}
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setEditingId(cat.id);
                 setEditName(cat.name);
                 setEditColor(cat.color ?? '#9E9E9E');
               }}
-              className="text-sm text-slate-500 hover:text-slate-700"
             >
               Edit
-            </button>
+            </Button>
             {!cat.isSystem && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
                 onClick={() => onDelete(cat.id)}
-                className="text-sm text-red-500 hover:text-red-700"
               >
                 Delete
-              </button>
+              </Button>
             )}
           </div>
         </>

@@ -5,6 +5,7 @@ import {
   Scripts,
   createRootRoute,
 } from '@tanstack/react-router';
+import '@fontsource-variable/inter';
 import appCss from '~/styles/app.css?url';
 
 export const Route = createRootRoute({
@@ -36,10 +37,10 @@ function RootComponent() {
       </head>
       <body>
         <div className="min-h-screen flex flex-col">
-          <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+          <header className="bg-card border-b border-border sticky top-0 z-10">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between h-16">
-                <Link to="/" className="text-xl font-bold text-slate-900 no-underline">
+                <Link to="/" className="text-xl font-bold text-foreground no-underline">
                   Ledger
                 </Link>
                 <nav className="flex gap-1">
@@ -47,8 +48,8 @@ function RootComponent() {
                     <Link
                       key={item.to}
                       to={item.to}
-                      className="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 no-underline [&.active]:bg-slate-100 [&.active]:text-slate-900"
-                      activeProps={{ className: 'active bg-slate-100 text-slate-900' }}
+                      className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent no-underline [&.active]:bg-accent [&.active]:text-accent-foreground"
+                      activeProps={{ className: 'active bg-accent text-accent-foreground' }}
                       activeOptions={{ exact: item.to === '/' }}
                     >
                       {item.label}
