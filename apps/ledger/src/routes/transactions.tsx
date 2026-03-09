@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { useState } from 'react';
-import { getDb, listTransactions, listAccounts, listCategories } from '@om/db';
+import { getDb, listTransactions, listAccounts, listCategories, updateTransactionCategory } from '@om/db';
 
 const getTransactionsData = createServerFn({ method: 'GET' }).handler(
   async () => {
@@ -12,6 +12,18 @@ const getTransactionsData = createServerFn({ method: 'GET' }).handler(
     return { transactions, accounts, categories };
   }
 );
+
+const assignCategory = createServerFn({ method: 'POST' })
+  .inputValidator(
+    (data: { txnId: string; categoryId: string | null }) => data
+  )
+  .handler(async ({ data }) => {
+    const db = getDb();
+    if (data.categoryId) {
+      updateTransactionCategory(db, data.txnId, data.categoryId, 'user');
+    }
+    return { success: true };
+  });
 
 export const Route = createFileRoute('/transactions')({
   component: TransactionsPage,
@@ -28,6 +40,7 @@ function formatCents(cents: number): string {
 
 function TransactionsPage() {
   const { transactions, accounts, categories } = Route.useLoaderData();
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [accountFilter, setAccountFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -134,19 +147,26 @@ function TransactionsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {txn.categoryName ? (
-                      <span className="inline-flex items-center gap-1.5 text-sm">
-                        <span
-                          className="w-2 h-2 rounded-full"
-                          style={{
-                            backgroundColor: txn.categoryColor ?? '#9E9E9E',
-                          }}
-                        />
-                        {txn.categoryName}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-slate-400">—</span>
-                    )}
+                    <select
+                      value={txn.categoryId ?? ''}
+                      onChange={async (e) => {
+                        const categoryId = e.target.value || null;
+                        if (categoryId) {
+                          await assignCategory({
+                            data: { txnId: txn.id, categoryId },
+                          });
+                          router.invalidate();
+                        }
+                      }}
+                      className="w-full px-2 py-1 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Uncategorized</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td
                     className={`px-4 py-3 text-sm font-medium text-right ${
