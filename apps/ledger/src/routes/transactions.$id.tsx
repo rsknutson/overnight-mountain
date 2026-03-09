@@ -4,7 +4,7 @@ import { useState } from 'react';
 import {
   getDb,
   getTransaction,
-  listCategories,
+  listCategoriesHierarchical,
   updateTransactionCategory,
   createCategoryRule,
 } from '@om/db';
@@ -15,7 +15,7 @@ const getTransactionDetail = createServerFn({ method: 'GET' })
     const db = getDb();
     const transaction = getTransaction(db, data.id);
     if (!transaction) throw new Error('Transaction not found');
-    const categories = listCategories(db);
+    const categories = listCategoriesHierarchical(db);
     return { transaction, categories };
   });
 
@@ -147,10 +147,15 @@ function TransactionDetailPage() {
             className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
           >
             <option value="">Select a category</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
+            {categories.map((group) => (
+              <optgroup key={group.id} label={group.name}>
+                <option value={group.id}>{group.name} (general)</option>
+                {group.children.map((child) => (
+                  <option key={child.id} value={child.id}>
+                    {child.name}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <label className="flex items-center gap-2 text-sm text-slate-600">

@@ -24,8 +24,16 @@ function createDb() {
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     color TEXT,
-    is_system INTEGER NOT NULL DEFAULT 0
+    is_system INTEGER NOT NULL DEFAULT 0,
+    parent_id TEXT REFERENCES categories(id)
   )`);
+
+  // Migration: add parent_id if missing (existing databases)
+  try {
+    db.run(sql`ALTER TABLE categories ADD COLUMN parent_id TEXT REFERENCES categories(id)`);
+  } catch {
+    // Column already exists
+  }
 
   db.run(sql`CREATE TABLE IF NOT EXISTS transfer_pairs (
     id TEXT PRIMARY KEY,

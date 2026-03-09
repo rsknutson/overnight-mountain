@@ -1,14 +1,14 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { useState } from 'react';
-import { getDb, listTransactions, listAccounts, listCategories, updateTransactionCategory } from '@om/db';
+import { getDb, listTransactions, listAccounts, listCategoriesHierarchical, updateTransactionCategory } from '@om/db';
 
 const getTransactionsData = createServerFn({ method: 'GET' }).handler(
   async () => {
     const db = getDb();
     const transactions = listTransactions(db, { includeTransfers: true });
     const accounts = listAccounts(db);
-    const categories = listCategories(db);
+    const categories = listCategoriesHierarchical(db);
     return { transactions, accounts, categories };
   }
 );
@@ -89,10 +89,15 @@ function TransactionsPage() {
           className="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
+          {categories.map((group) => (
+            <optgroup key={group.id} label={group.name}>
+              <option value={group.id}>{group.name} (all)</option>
+              {group.children.map((child) => (
+                <option key={child.id} value={child.id}>
+                  {child.name}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
@@ -161,10 +166,15 @@ function TransactionsPage() {
                       className="w-full px-2 py-1 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Uncategorized</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </option>
+                      {categories.map((group) => (
+                        <optgroup key={group.id} label={group.name}>
+                          <option value={group.id}>{group.name} (general)</option>
+                          {group.children.map((child) => (
+                            <option key={child.id} value={child.id}>
+                              {child.name}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </td>

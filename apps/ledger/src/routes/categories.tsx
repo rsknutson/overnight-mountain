@@ -17,7 +17,9 @@ const getCategoriesData = createServerFn({ method: 'GET' }).handler(
 );
 
 const addCategory = createServerFn({ method: 'POST' })
-  .inputValidator((data: { name: string; color: string }) => data)
+  .inputValidator(
+    (data: { name: string; color: string; parentId: string | null }) => data
+  )
   .handler(async ({ data }) => {
     const db = getDb();
     return createCategory(db, data);
@@ -25,7 +27,12 @@ const addCategory = createServerFn({ method: 'POST' })
 
 const editCategory = createServerFn({ method: 'POST' })
   .inputValidator(
-    (data: { id: string; name?: string; color?: string | null }) => data
+    (data: {
+      id: string;
+      name?: string;
+      color?: string | null;
+      parentId?: string | null;
+    }) => data
   )
   .handler(async ({ data }) => {
     const db = getDb();
@@ -52,14 +59,22 @@ function CategoriesPage() {
   const router = useRouter();
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#6366f1');
+  const [newParentId, setNewParentId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
 
+  const parents = categories.filter((c) => !c.parentId);
+  const childrenOf = (parentId: string) =>
+    categories.filter((c) => c.parentId === parentId);
+
   const handleAdd = async () => {
     if (!newName.trim()) return;
-    await addCategory({ data: { name: newName.trim(), color: newColor } });
+    await addCategory({
+      data: { name: newName.trim(), color: newColor, parentId: newParentId },
+    });
     setNewName('');
+    setNewParentId(null);
     router.invalidate();
   };
 
@@ -81,8 +96,8 @@ function CategoriesPage() {
       <h1 className="text-2xl font-bold text-slate-900">Categories</h1>
 
       {/* Add Category */}
-      <div className="bg-white rounded-lg border border-slate-200 p-4 flex gap-3 items-end">
-        <div className="flex-1">
+      <div className="bg-white rounded-lg border border-slate-200 p-4 flex gap-3 items-end flex-wrap">
+        <div className="flex-1 min-w-48">
           <label className="text-xs text-slate-500 uppercase">Name</label>
           <input
             type="text"
@@ -92,6 +107,21 @@ function CategoriesPage() {
             className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           />
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 uppercase">Parent</label>
+          <select
+            value={newParentId ?? ''}
+            onChange={(e) => setNewParentId(e.target.value || null)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+          >
+            <option value="">None (top-level)</option>
+            {parents.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="text-xs text-slate-500 uppercase">Color</label>
@@ -110,82 +140,150 @@ function CategoriesPage() {
         </button>
       </div>
 
-      {/* Categories List */}
+      {/* Categories List - Hierarchical */}
       <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
-        {categories.map((cat) => (
-          <div key={cat.id} className="px-4 py-3 flex items-center justify-between">
-            {editingId === cat.id ? (
-              <div className="flex gap-2 items-center flex-1">
-                <input
-                  type="color"
-                  value={editColor}
-                  onChange={(e) => setEditColor(e.target.value)}
-                  className="w-8 h-8 rounded border border-slate-300 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="flex-1 px-2 py-1 border border-slate-300 rounded text-sm"
-                  onKeyDown={(e) => e.key === 'Enter' && handleEdit(cat.id)}
-                />
-                <button
-                  onClick={() => handleEdit(cat.id)}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setEditingId(null)}
-                  className="text-sm text-slate-500 hover:text-slate-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: cat.color ?? '#9E9E9E' }}
-                  />
-                  <span className="text-sm font-medium text-slate-900">
-                    {cat.name}
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    {cat.transactionCount} transactions
-                  </span>
-                  {cat.isSystem && (
-                    <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
-                      System
-                    </span>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingId(cat.id);
-                      setEditName(cat.name);
-                      setEditColor(cat.color ?? '#9E9E9E');
-                    }}
-                    className="text-sm text-slate-500 hover:text-slate-700"
-                  >
-                    Edit
-                  </button>
-                  {!cat.isSystem && (
-                    <button
-                      onClick={() => handleDelete(cat.id)}
-                      className="text-sm text-red-500 hover:text-red-700"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
+        {parents.map((cat) => (
+          <div key={cat.id}>
+            <CategoryRow
+              cat={cat}
+              indent={0}
+              editingId={editingId}
+              editName={editName}
+              editColor={editColor}
+              setEditingId={setEditingId}
+              setEditName={setEditName}
+              setEditColor={setEditColor}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+            {childrenOf(cat.id).map((child) => (
+              <CategoryRow
+                key={child.id}
+                cat={child}
+                indent={1}
+                editingId={editingId}
+                editName={editName}
+                editColor={editColor}
+                setEditingId={setEditingId}
+                setEditName={setEditName}
+                setEditColor={setEditColor}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function CategoryRow({
+  cat,
+  indent,
+  editingId,
+  editName,
+  editColor,
+  setEditingId,
+  setEditName,
+  setEditColor,
+  onEdit,
+  onDelete,
+}: {
+  cat: {
+    id: string;
+    name: string;
+    color: string | null;
+    isSystem: boolean;
+    transactionCount: number;
+  };
+  indent: number;
+  editingId: string | null;
+  editName: string;
+  editColor: string;
+  setEditingId: (id: string | null) => void;
+  setEditName: (name: string) => void;
+  setEditColor: (color: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const paddingLeft = indent === 1 ? 'pl-10' : 'pl-4';
+
+  return (
+    <div
+      className={`${paddingLeft} pr-4 py-3 flex items-center justify-between`}
+    >
+      {editingId === cat.id ? (
+        <div className="flex gap-2 items-center flex-1">
+          <input
+            type="color"
+            value={editColor}
+            onChange={(e) => setEditColor(e.target.value)}
+            className="w-8 h-8 rounded border border-slate-300 cursor-pointer"
+          />
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="flex-1 px-2 py-1 border border-slate-300 rounded text-sm"
+            onKeyDown={(e) => e.key === 'Enter' && onEdit(cat.id)}
+          />
+          <button
+            onClick={() => onEdit(cat.id)}
+            className="text-sm text-blue-600 hover:text-blue-700"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => setEditingId(null)}
+            className="text-sm text-slate-500 hover:text-slate-700"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-4 h-4 rounded-full flex-shrink-0"
+              style={{ backgroundColor: cat.color ?? '#9E9E9E' }}
+            />
+            <span
+              className={`text-sm font-medium ${indent === 1 ? 'text-slate-700' : 'text-slate-900'}`}
+            >
+              {cat.name}
+            </span>
+            <span className="text-xs text-slate-400">
+              {cat.transactionCount} transactions
+            </span>
+            {cat.isSystem && (
+              <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                System
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setEditingId(cat.id);
+                setEditName(cat.name);
+                setEditColor(cat.color ?? '#9E9E9E');
+              }}
+              className="text-sm text-slate-500 hover:text-slate-700"
+            >
+              Edit
+            </button>
+            {!cat.isSystem && (
+              <button
+                onClick={() => onDelete(cat.id)}
+                className="text-sm text-red-500 hover:text-red-700"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

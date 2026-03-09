@@ -12,6 +12,7 @@ import {
   getLatestTransactionMonth,
   getMonthlySummary,
   listCategories,
+  listCategoriesHierarchical,
   createCategory,
   updateTransactionCategory,
   getSetting,
@@ -35,7 +36,8 @@ function createTestDb(): Db {
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     color TEXT,
-    is_system INTEGER NOT NULL DEFAULT 0
+    is_system INTEGER NOT NULL DEFAULT 0,
+    parent_id TEXT REFERENCES categories(id)
   )`);
 
   db.run(sql`CREATE TABLE transfer_pairs (
@@ -109,23 +111,46 @@ describe('categories', () => {
     db = createTestDb();
   });
 
-  it('seeds default categories', () => {
+  it('seeds default categories with hierarchy', () => {
     seedCategories(db);
-    const categories = listCategories(db);
-    expect(categories.length).toBeGreaterThanOrEqual(12);
+    const all = listCategories(db);
+    // Should have parent + child categories
+    expect(all.length).toBeGreaterThanOrEqual(40);
+    // Should have parent categories without parentId
+    const parents = all.filter((c) => !c.parentId);
+    expect(parents.length).toBeGreaterThanOrEqual(12);
+    // Should have child categories with parentId
+    const children = all.filter((c) => c.parentId);
+    expect(children.length).toBeGreaterThan(0);
   });
 
   it('seeds are idempotent', () => {
     seedCategories(db);
+    const first = listCategories(db);
     seedCategories(db);
-    const categories = listCategories(db);
-    expect(categories.length).toBeGreaterThanOrEqual(12);
+    const second = listCategories(db);
+    expect(second.length).toBe(first.length);
   });
 
-  it('creates custom categories', () => {
-    createCategory(db, { name: 'Custom', color: '#FF0000' });
-    const categories = listCategories(db);
-    expect(categories.some((c) => c.name === 'Custom')).toBe(true);
+  it('creates custom categories with parent', () => {
+    const parent = createCategory(db, { name: 'Parent', color: '#FF0000' });
+    createCategory(db, { name: 'Child', color: '#00FF00', parentId: parent.id });
+    const hierarchy = listCategoriesHierarchical(db);
+    const parentGroup = hierarchy.find((c) => c.name === 'Parent');
+    expect(parentGroup).toBeDefined();
+    expect(parentGroup!.children).toHaveLength(1);
+    expect(parentGroup!.children[0].name).toBe('Child');
+  });
+
+  it('lists categories hierarchically', () => {
+    seedCategories(db);
+    const hierarchy = listCategoriesHierarchical(db);
+    // All entries should be parents (no parentId)
+    expect(hierarchy.every((c) => !c.parentId)).toBe(true);
+    // Repairs & Maintenance should have children
+    const repairs = hierarchy.find((c) => c.name === 'Repairs & Maintenance');
+    expect(repairs).toBeDefined();
+    expect(repairs!.children.length).toBeGreaterThanOrEqual(4);
   });
 });
 
