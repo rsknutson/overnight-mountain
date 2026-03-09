@@ -16,6 +16,11 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["@overnight-mountain/source"]
+    "customConditions": ["@overnight-mountain/source"],
+    "paths": {
+      "@om/csv-parser": ["./packages/csv-parser/src/index.ts"],
+      "@om/db": ["./packages/db/src/index.ts"],
+      "@om/ai": ["./packages/ai/src/index.ts"]
+    }
   }
 }

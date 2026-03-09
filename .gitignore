@@ -34,6 +34,18 @@ junit.xml
 *~
 .DS_Store
 
+# SQLite databases
+*.db
+*.db-wal
+*.db-shm
+
+# TanStack Start output
+.output
+.vinxi
+
+# Generated files
+routeTree.gen.ts
+
 # Environment variables
 .env
 .env.local

@@ -1,0 +1,14 @@
+{
+  "name": "@om/db",
+  "sourceRoot": "packages/db/src",
+  "projectType": "library",
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run",
+        "cwd": "packages/db"
+      }
+    }
+  }
+}

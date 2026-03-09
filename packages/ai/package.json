@@ -1,0 +1,22 @@
+{
+  "name": "@om/ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "@overnight-mountain/source": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4",
+    "typescript": "~5.9.2"
+  }
+}

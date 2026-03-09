@@ -1,0 +1,14 @@
+{
+  "name": "@om/csv-parser",
+  "sourceRoot": "packages/csv-parser/src",
+  "projectType": "library",
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run",
+        "cwd": "packages/csv-parser"
+      }
+    }
+  }
+}
