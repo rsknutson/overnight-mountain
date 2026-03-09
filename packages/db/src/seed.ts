@@ -6,6 +6,7 @@ import { categories } from './schema/index.js';
 interface CategorySeed {
   name: string;
   color: string;
+  isExcluded?: boolean;
   children?: { name: string }[];
 }
 
@@ -49,6 +50,7 @@ const DEFAULT_CATEGORIES: CategorySeed[] = [
       { name: 'Landscaping' },
       { name: 'Appliance Repair' },
       { name: 'Janitorial / House Cleaning' },
+      { name: 'Pest Control' },
       { name: 'General Repairs' },
     ],
   },
@@ -127,6 +129,7 @@ const DEFAULT_CATEGORIES: CategorySeed[] = [
     ],
   },
   { name: 'Uncategorized', color: '#9E9E9E' },
+  { name: 'Exclude', color: '#616161', isExcluded: true },
 ];
 
 export function seedCategories(db: Db) {
@@ -138,6 +141,7 @@ export function seedCategories(db: Db) {
         name: cat.name,
         color: cat.color,
         isSystem: true,
+        isExcluded: cat.isExcluded ?? false,
         parentId: null,
       })
       .onConflictDoNothing()

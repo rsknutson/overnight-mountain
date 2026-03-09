@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { to: '/' as const, label: 'Dashboard' },
   { to: '/import' as const, label: 'Import' },
   { to: '/transactions' as const, label: 'Transactions' },
+  { to: '/amazon-orders' as const, label: 'Amazon Orders' },
   { to: '/categories' as const, label: 'Categories' },
   { to: '/transfers' as const, label: 'Transfers' },
   { to: '/settings' as const, label: 'Settings' },

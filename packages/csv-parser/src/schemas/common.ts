@@ -11,4 +11,4 @@ export const NormalizedTransactionSchema = z.object({
 
 export type NormalizedTransaction = z.infer<typeof NormalizedTransactionSchema>;
 
-export type CsvFormat = 'chase-checking' | 'chase-credit';
+export type CsvFormat = 'chase-checking' | 'chase-credit' | 'amazon-orders';

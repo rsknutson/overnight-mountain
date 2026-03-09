@@ -1,6 +1,7 @@
 export { parseChaseChecking } from './parsers/chase-checking-parser.js';
 export { parseChaseCredit } from './parsers/chase-credit-parser.js';
-export { detectFormat } from './detect-format.js';
+export { parseAmazonOrders, type NormalizedAmazonOrder } from './parsers/amazon-order-parser.js';
+export { detectFormat, parseHeaderLine } from './detect-format.js';
 export {
   NormalizedTransactionSchema,
   type NormalizedTransaction,

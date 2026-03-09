@@ -35,6 +35,20 @@ function createDb() {
     // Column already exists
   }
 
+  // Migration: add is_excluded to categories
+  try {
+    db.run(sql`ALTER TABLE categories ADD COLUMN is_excluded INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // Column already exists
+  }
+
+  // Migration: add notes to transactions
+  try {
+    db.run(sql`ALTER TABLE transactions ADD COLUMN notes TEXT`);
+  } catch {
+    // Column already exists
+  }
+
   db.run(sql`CREATE TABLE IF NOT EXISTS transfer_pairs (
     id TEXT PRIMARY KEY,
     checking_txn_id TEXT NOT NULL,
@@ -70,6 +84,20 @@ function createDb() {
   db.run(sql`CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT
+  )`);
+
+  db.run(sql`CREATE TABLE IF NOT EXISTS amazon_orders (
+    id TEXT PRIMARY KEY,
+    order_id TEXT NOT NULL,
+    order_date TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    category TEXT,
+    asin TEXT,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    item_total INTEGER NOT NULL,
+    order_url TEXT,
+    transaction_id TEXT,
+    created_at TEXT NOT NULL
   )`);
 
   return db;

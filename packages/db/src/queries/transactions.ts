@@ -1,7 +1,16 @@
-import { and, desc, eq, gte, like, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, like, lt, notInArray, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type { Db } from '../client.js';
 import { transactions, categories } from '../schema/index.js';
+
+function getExcludedCategoryIds(db: Db): string[] {
+  return db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.isExcluded, true))
+    .all()
+    .map((r) => r.id);
+}
 
 export interface TransactionInsert {
   externalId: string;
@@ -86,6 +95,7 @@ export function getTransaction(db: Db, id: string) {
       isTransfer: transactions.isTransfer,
       transferPairId: transactions.transferPairId,
       rawDescription: transactions.rawDescription,
+      notes: transactions.notes,
       createdAt: transactions.createdAt,
     })
     .from(transactions)
@@ -153,6 +163,13 @@ export function getUncategorizedTransactions(db: Db) {
     .all();
 }
 
+export function updateTransactionNotes(db: Db, id: string, notes: string | null) {
+  db.update(transactions)
+    .set({ notes })
+    .where(eq(transactions.id, id))
+    .run();
+}
+
 export function getLatestTransactionMonth(db: Db): string | null {
   const row = db
     .select({
@@ -176,6 +193,11 @@ export function getMonthlySummary(db: Db, month: string) {
       ? `${year + 1}-01-01`
       : `${year}-${String(m + 1).padStart(2, '0')}-01`;
 
+  const excludedIds = getExcludedCategoryIds(db);
+  const excludeCondition = excludedIds.length > 0
+    ? sql`(${transactions.categoryId} IS NULL OR ${notInArray(transactions.categoryId, excludedIds)})`
+    : undefined;
+
   const result = db
     .select({
       totalIncome: sql<number>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), 0)`,
@@ -187,7 +209,8 @@ export function getMonthlySummary(db: Db, month: string) {
       and(
         gte(transactions.date, start),
         lt(transactions.date, nextMonth),
-        eq(transactions.isTransfer, false)
+        eq(transactions.isTransfer, false),
+        excludeCondition
       )
     )
     .get();
@@ -206,7 +229,8 @@ export function getMonthlySummary(db: Db, month: string) {
       and(
         gte(transactions.date, start),
         lt(transactions.date, nextMonth),
-        eq(transactions.isTransfer, false)
+        eq(transactions.isTransfer, false),
+        excludeCondition
       )
     )
     .groupBy(transactions.categoryId)
@@ -215,6 +239,78 @@ export function getMonthlySummary(db: Db, month: string) {
 
   return {
     month,
+    totalIncome: result?.totalIncome ?? 0,
+    totalExpenses: result?.totalExpenses ?? 0,
+    net: (result?.totalIncome ?? 0) + (result?.totalExpenses ?? 0),
+    transactionCount: result?.transactionCount ?? 0,
+    byCategory,
+  };
+}
+
+export function getTransactionYears(db: Db): number[] {
+  const rows = db
+    .select({
+      year: sql<number>`cast(substr(${transactions.date}, 1, 4) as integer)`,
+    })
+    .from(transactions)
+    .where(eq(transactions.isTransfer, false))
+    .groupBy(sql`substr(${transactions.date}, 1, 4)`)
+    .orderBy(desc(sql`substr(${transactions.date}, 1, 4)`))
+    .all();
+
+  return rows.map((r) => r.year);
+}
+
+export function getYearlySummary(db: Db, year: number) {
+  const start = `${year}-01-01`;
+  const end = `${year + 1}-01-01`;
+
+  const excludedIds = getExcludedCategoryIds(db);
+  const excludeCondition = excludedIds.length > 0
+    ? sql`(${transactions.categoryId} IS NULL OR ${notInArray(transactions.categoryId, excludedIds)})`
+    : undefined;
+
+  const result = db
+    .select({
+      totalIncome: sql<number>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), 0)`,
+      totalExpenses: sql<number>`coalesce(sum(case when ${transactions.amount} < 0 then ${transactions.amount} else 0 end), 0)`,
+      transactionCount: sql<number>`count(*)`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        gte(transactions.date, start),
+        lt(transactions.date, end),
+        eq(transactions.isTransfer, false),
+        excludeCondition
+      )
+    )
+    .get();
+
+  const byCategory = db
+    .select({
+      categoryId: transactions.categoryId,
+      categoryName: categories.name,
+      categoryColor: categories.color,
+      total: sql<number>`sum(${transactions.amount})`,
+      count: sql<number>`count(*)`,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
+    .where(
+      and(
+        gte(transactions.date, start),
+        lt(transactions.date, end),
+        eq(transactions.isTransfer, false),
+        excludeCondition
+      )
+    )
+    .groupBy(transactions.categoryId)
+    .orderBy(sql`sum(${transactions.amount}) asc`)
+    .all();
+
+  return {
+    year,
     totalIncome: result?.totalIncome ?? 0,
     totalExpenses: result?.totalExpenses ?? 0,
     net: (result?.totalIncome ?? 0) + (result?.totalExpenses ?? 0),

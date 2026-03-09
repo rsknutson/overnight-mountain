@@ -5,5 +5,6 @@ export const categories = sqliteTable('categories', {
   name: text('name').notNull().unique(),
   color: text('color'),
   isSystem: integer('is_system', { mode: 'boolean' }).notNull().default(false),
+  isExcluded: integer('is_excluded', { mode: 'boolean' }).notNull().default(false),
   parentId: text('parent_id'),
 });

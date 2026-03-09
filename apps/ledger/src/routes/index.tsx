@@ -1,24 +1,35 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { getDb, getLatestTransactionMonth, getMonthlySummary, listTransactions, seedCategories } from '@om/db';
+import { getDb, getTransactionYears, getYearlySummary, getMonthlySummary, seedCategories } from '@om/db';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import { Button } from '~/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const getDashboardData = createServerFn({ method: 'GET' }).handler(async () => {
-  const db = getDb();
-  seedCategories(db);
+const getDashboardData = createServerFn({ method: 'GET' })
+  .inputValidator((data: { year?: number; month?: number }) => data)
+  .handler(async ({ data }) => {
+    const db = getDb();
+    seedCategories(db);
 
-  const now = new Date();
-  const fallbackMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const currentMonth = getLatestTransactionMonth(db) ?? fallbackMonth;
-  const summary = getMonthlySummary(db, currentMonth);
-  const recentTransactions = listTransactions(db, { includeTransfers: false }).slice(0, 10);
+    const years = getTransactionYears(db);
+    const selectedYear = data.year ?? years[0] ?? new Date().getFullYear();
+    const selectedMonth = data.month ?? undefined;
 
-  return { summary, recentTransactions, currentMonth };
-});
+    const summary = selectedMonth
+      ? getMonthlySummary(db, `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`)
+      : getYearlySummary(db, selectedYear);
+
+    return { summary, years, selectedYear, selectedMonth };
+  });
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
-  loader: () => getDashboardData(),
+  validateSearch: (search: Record<string, unknown>) => ({
+    year: search.year ? Number(search.year) : undefined,
+    month: search.month ? Number(search.month) : undefined,
+  }),
+  loaderDeps: ({ search }) => ({ year: search.year, month: search.month }),
+  loader: ({ deps }) => getDashboardData({ data: { year: deps.year, month: deps.month } }),
 });
 
 function formatCents(cents: number): string {
@@ -29,19 +40,75 @@ function formatCents(cents: number): string {
   return `${sign}$${dollars.toLocaleString()}.${String(remainder).padStart(2, '0')}`;
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
 function Dashboard() {
-  const { summary, recentTransactions, currentMonth } = Route.useLoaderData();
+  const { summary, years, selectedYear, selectedMonth } = Route.useLoaderData();
+  const navigate = useNavigate();
+
+  const yearIndex = years.indexOf(selectedYear);
+  const hasPrev = yearIndex < years.length - 1;
+  const hasNext = yearIndex > 0;
+
+  const goTo = (year: number, month?: number) => {
+    navigate({ to: '/', search: { year, month } });
+  };
 
   return (
     <div className="space-y-8">
-      <div>
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          {new Date(currentMonth + '-01').toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric',
-          })}
-        </p>
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedMonth ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              goTo(selectedYear, val ? Number(val) : undefined);
+            }}
+            className="flex h-8 rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="">All Months</option>
+            {MONTH_NAMES.map((name, i) => (
+              <option key={i + 1} value={i + 1}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              disabled={!hasPrev}
+              onClick={() => hasPrev && goTo(years[yearIndex + 1], selectedMonth)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <select
+              value={selectedYear}
+              onChange={(e) => goTo(Number(e.target.value), selectedMonth)}
+              className="flex h-8 rounded-md border border-input bg-background px-2 py-1 text-sm font-semibold ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              disabled={!hasNext}
+              onClick={() => hasNext && goTo(years[yearIndex - 1], selectedMonth)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -97,48 +164,6 @@ function Dashboard() {
           </CardContent>
         </Card>
       )}
-
-      {/* Recent Transactions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Recent Transactions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentTransactions.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No transactions yet. Import a CSV to get started.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {recentTransactions.map((txn) => (
-                <div
-                  key={txn.id}
-                  className="flex items-center justify-between py-2 border-b border-border last:border-0"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {txn.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{txn.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className={`text-sm font-medium ${
-                        txn.amount >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {formatCents(txn.amount)}
-                    </p>
-                    {txn.categoryName && (
-                      <p className="text-xs text-muted-foreground">{txn.categoryName}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

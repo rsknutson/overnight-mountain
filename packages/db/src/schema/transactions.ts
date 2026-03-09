@@ -21,6 +21,7 @@ export const transactions = sqliteTable('transactions', {
     .default(false),
   transferPairId: text('transfer_pair_id').references(() => transferPairs.id),
   rawDescription: text('raw_description'),
+  notes: text('notes'),
   createdAt: text('created_at')
     .notNull()
     .$defaultFn(() => new Date().toISOString()),

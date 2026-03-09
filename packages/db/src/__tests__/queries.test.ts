@@ -37,6 +37,7 @@ function createTestDb(): Db {
     name TEXT NOT NULL UNIQUE,
     color TEXT,
     is_system INTEGER NOT NULL DEFAULT 0,
+    is_excluded INTEGER NOT NULL DEFAULT 0,
     parent_id TEXT REFERENCES categories(id)
   )`);
 
@@ -61,6 +62,7 @@ function createTestDb(): Db {
     is_transfer INTEGER NOT NULL DEFAULT 0,
     transfer_pair_id TEXT REFERENCES transfer_pairs(id),
     raw_description TEXT,
+    notes TEXT,
     created_at TEXT NOT NULL
   )`);
 
@@ -75,6 +77,20 @@ function createTestDb(): Db {
   db.run(sql`CREATE TABLE settings (
     key TEXT PRIMARY KEY,
     value TEXT
+  )`);
+
+  db.run(sql`CREATE TABLE amazon_orders (
+    id TEXT PRIMARY KEY,
+    order_id TEXT NOT NULL,
+    order_date TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    category TEXT,
+    asin TEXT,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    item_total INTEGER NOT NULL,
+    order_url TEXT,
+    transaction_id TEXT,
+    created_at TEXT NOT NULL
   )`);
 
   return db;
