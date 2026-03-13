@@ -25,8 +25,8 @@ export function parseChaseCredit(csvText: string): NormalizedTransaction[] {
     if (!parsed.success) continue;
 
     const { Description, Amount } = parsed.data;
-    const postDate = parsed.data['Post Date'];
-    const date = parseChaseDate(postDate);
+    const transactionDate = parsed.data['Transaction Date'];
+    const date = parseChaseDate(transactionDate);
     const amount = dollarsToCents(Amount);
 
     results.push({

@@ -1,6 +1,6 @@
 import type { TransactionForCategorization } from './types.js';
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 200;
 
 export function batchTransactions(
   transactions: TransactionForCategorization[]

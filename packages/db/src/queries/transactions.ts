@@ -163,6 +163,38 @@ export function getUncategorizedTransactions(db: Db) {
     .all();
 }
 
+export function getTransactionsInDateRange(
+  db: Db,
+  from: string,
+  to: string,
+  options?: { uncategorizedOnly?: boolean }
+) {
+  const conditions = [
+    gte(transactions.date, from),
+    lt(transactions.date, to),
+    eq(transactions.isTransfer, false),
+  ];
+
+  if (options?.uncategorizedOnly) {
+    conditions.push(sql`${transactions.categoryId} IS NULL`);
+  }
+
+  return db
+    .select({
+      id: transactions.id,
+      date: transactions.date,
+      description: transactions.description,
+      amount: transactions.amount,
+      categoryId: transactions.categoryId,
+      categoryName: categories.name,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
+    .where(and(...conditions))
+    .orderBy(desc(transactions.date))
+    .all();
+}
+
 export function updateTransactionNotes(db: Db, id: string, notes: string | null) {
   db.update(transactions)
     .set({ notes })

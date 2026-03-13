@@ -3,7 +3,11 @@ import type { CategoryInfo, TransactionForCategorization } from './types.js';
 export function buildCategorizationPrompt(
   transactions: TransactionForCategorization[],
   categories: CategoryInfo[],
-  correctionHistory?: Array<{ description: string; categoryName: string }>
+  correctionHistory?: Array<{ description: string; categoryName: string }>,
+  options?: {
+    agentInstructions?: string;
+    userPrompt?: string;
+  }
 ): string {
   const categoryList = categories.map((c) => c.name).join(', ');
 
@@ -20,6 +24,16 @@ Categories: ${categoryList}
 
 Transactions to categorize:
 ${txnList}`;
+
+  if (options?.agentInstructions) {
+    prompt += `\n\nAdditional instructions from the user on how to categorize:
+${options.agentInstructions}`;
+  }
+
+  if (options?.userPrompt) {
+    prompt += `\n\nSpecific guidance for this categorization run:
+${options.userPrompt}`;
+  }
 
   if (correctionHistory && correctionHistory.length > 0) {
     const corrections = correctionHistory

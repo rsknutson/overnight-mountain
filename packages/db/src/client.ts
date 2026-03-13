@@ -86,6 +86,15 @@ function createDb() {
     value TEXT
   )`);
 
+  db.run(sql`CREATE TABLE IF NOT EXISTS pending_categorizations (
+    id TEXT PRIMARY KEY,
+    transaction_id TEXT NOT NULL REFERENCES transactions(id),
+    proposed_category_id TEXT NOT NULL REFERENCES categories(id),
+    confidence INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL
+  )`);
+
   db.run(sql`CREATE TABLE IF NOT EXISTS amazon_orders (
     id TEXT PRIMARY KEY,
     order_id TEXT NOT NULL,

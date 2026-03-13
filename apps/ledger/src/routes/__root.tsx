@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { to: '/amazon-orders' as const, label: 'Amazon Orders' },
   { to: '/categories' as const, label: 'Categories' },
   { to: '/transfers' as const, label: 'Transfers' },
+  { to: '/chat' as const, label: 'AI Chat' },
   { to: '/settings' as const, label: 'Settings' },
 ];
 

@@ -10,12 +10,14 @@ import {
   createCategoryRule,
   findCandidateAmazonOrders,
   getLinkedAmazonOrders,
+  listUnlinkedAmazonOrders,
   linkAmazonOrder,
   unlinkAmazonOrder,
 } from '@om/db';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Button } from '~/components/ui/button';
 import { Badge } from '~/components/ui/badge';
+import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { Separator } from '~/components/ui/separator';
 import { Textarea } from '~/components/ui/textarea';
@@ -91,6 +93,13 @@ const unlinkOrder = createServerFn({ method: 'POST' })
     return { success: true };
   });
 
+const getAllUnlinkedOrders = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const db = getDb();
+    return listUnlinkedAmazonOrders(db);
+  }
+);
+
 export const Route = createFileRoute('/transactions/$id')({
   component: TransactionDetailPage,
   loader: ({ params }) => getTransactionDetail({ data: { id: params.id } }),
@@ -117,6 +126,25 @@ function TransactionDetailPage() {
   const [savingNotes, setSavingNotes] = useState(false);
   const notesChanged = notes !== (transaction.notes ?? '');
   const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [browsingAll, setBrowsingAll] = useState(false);
+  const [allUnlinked, setAllUnlinked] = useState<typeof linkedOrders | null>(null);
+  const [browseSearch, setBrowseSearch] = useState('');
+  const [loadingBrowse, setLoadingBrowse] = useState(false);
+
+  const handleBrowseAll = async () => {
+    setLoadingBrowse(true);
+    const orders = await getAllUnlinkedOrders();
+    setAllUnlinked(orders);
+    setBrowsingAll(true);
+    setLoadingBrowse(false);
+  };
+
+  const browseFiltered = allUnlinked?.filter(
+    (o) =>
+      !browseSearch ||
+      o.itemName.toLowerCase().includes(browseSearch.toLowerCase()) ||
+      o.orderId.toLowerCase().includes(browseSearch.toLowerCase())
+  );
 
   const handleSave = async () => {
     if (!selectedCategory) return;
@@ -285,7 +313,7 @@ function TransactionDetailPage() {
                 )}
 
                 {/* Candidate orders to link */}
-                {candidateOrders.length > 0 ? (
+                {!browsingAll && candidateOrders.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">
                       Suggested matches (by date and amount):
@@ -332,12 +360,101 @@ function TransactionDetailPage() {
                       </div>
                     ))}
                   </div>
-                ) : linkedOrders.length === 0 ? (
+                )}
+
+                {!browsingAll && candidateOrders.length === 0 && linkedOrders.length === 0 && (
                   <p className="text-sm text-muted-foreground">
                     No Amazon orders found nearby. Import your Amazon order
                     report to match purchases.
                   </p>
-                ) : null}
+                )}
+
+                {/* Browse all unlinked orders */}
+                {browsingAll && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        All unlinked orders:
+                      </p>
+                      <button
+                        className="text-xs text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-none p-0"
+                        onClick={() => { setBrowsingAll(false); setAllUnlinked(null); setBrowseSearch(''); }}
+                      >
+                        Back to suggestions
+                      </button>
+                    </div>
+                    <Input
+                      type="text"
+                      placeholder="Search orders..."
+                      value={browseSearch}
+                      onChange={(e) => setBrowseSearch(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <div className="max-h-64 overflow-y-auto space-y-2">
+                      {browseFiltered && browseFiltered.length > 0 ? (
+                        browseFiltered.slice(0, 20).map((order) => (
+                          <div
+                            key={order.id}
+                            className="flex items-start justify-between rounded-md border px-4 py-3"
+                          >
+                            <div className="space-y-1 min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {order.itemName}
+                              </p>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span>{order.orderDate}</span>
+                                <span>{formatCents(order.itemTotal)}</span>
+                                <span>Qty: {order.quantity}</span>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="flex-shrink-0"
+                              disabled={linkingId === order.id}
+                              onClick={async () => {
+                                setLinkingId(order.id);
+                                await linkOrder({
+                                  data: {
+                                    amazonOrderId: order.id,
+                                    transactionId: transaction.id,
+                                  },
+                                });
+                                setLinkingId(null);
+                                router.invalidate();
+                              }}
+                            >
+                              {linkingId === order.id ? 'Linking...' : 'Link'}
+                            </Button>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          No unlinked orders found.
+                        </p>
+                      )}
+                      {browseFiltered && browseFiltered.length > 20 && (
+                        <p className="text-xs text-muted-foreground">
+                          Showing 20 of {browseFiltered.length} — use search to narrow down.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Link another / Browse all button */}
+                {!browsingAll && (
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={loadingBrowse}
+                      onClick={handleBrowseAll}
+                    >
+                      {loadingBrowse ? 'Loading...' : linkedOrders.length > 0 ? 'Link another order' : 'Browse all unlinked orders'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </>
           )}

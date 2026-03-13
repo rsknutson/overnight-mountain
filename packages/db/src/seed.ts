@@ -62,6 +62,8 @@ const DEFAULT_CATEGORIES: CategorySeed[] = [
       { name: 'New Appliances' },
       { name: 'Roof' },
       { name: 'Flooring' },
+      { name: 'Furniture' },
+      { name: 'Furnishings' },
     ],
   },
   {
@@ -125,7 +127,7 @@ const DEFAULT_CATEGORIES: CategorySeed[] = [
     children: [
       { name: 'Cleaning Supplies' },
       { name: 'Tools' },
-      { name: 'Office Supplies' },
+      { name: 'Consumer Supplies' },
     ],
   },
   { name: 'Uncategorized', color: '#9E9E9E' },
@@ -133,6 +135,19 @@ const DEFAULT_CATEGORIES: CategorySeed[] = [
 ];
 
 export function seedCategories(db: Db) {
+  // Migration: rename "Office Supplies" → "Consumer Supplies"
+  const officeSupplies = db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.name, 'Office Supplies'))
+    .get();
+  if (officeSupplies) {
+    db.update(categories)
+      .set({ name: 'Consumer Supplies' })
+      .where(eq(categories.id, officeSupplies.id))
+      .run();
+  }
+
   for (const cat of DEFAULT_CATEGORIES) {
     const parentId = nanoid();
     db.insert(categories)

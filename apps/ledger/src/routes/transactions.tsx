@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, useRouter } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   getDb,
   listTransactions,
@@ -26,9 +26,23 @@ import {
   TableHeader,
   TableRow,
 } from '~/components/ui/table';
-import { Package, ExternalLink } from 'lucide-react';
+import { Package, ExternalLink, Settings2 } from 'lucide-react';
 import { CategoryCombobox } from '~/components/category-combobox';
 import { TransactionFilters, type Filters } from '~/components/transaction-filters';
+
+type AmazonOrder = {
+  id: string;
+  orderId: string;
+  orderDate: string;
+  itemName: string;
+  category: string | null;
+  asin: string | null;
+  quantity: number;
+  itemTotal: number;
+  orderUrl: string | null;
+  transactionId: string | null;
+  createdAt: string;
+};
 
 const getTransactionsData = createServerFn({ method: 'GET' }).handler(
   async () => {
@@ -103,19 +117,40 @@ export const Route = createFileRoute('/transactions')({
   loader: () => getTransactionsData(),
 });
 
-type AmazonOrder = {
-  id: string;
-  orderId: string;
-  orderDate: string;
-  itemName: string;
-  category: string | null;
-  asin: string | null;
-  quantity: number;
-  itemTotal: number;
-  orderUrl: string | null;
-  transactionId: string | null;
-  createdAt: string;
-};
+// -- Column picker types --
+
+type ColumnKey = 'date' | 'description' | 'category' | 'amount' | 'account' | 'source';
+
+interface ColumnDef {
+  key: ColumnKey;
+  label: string;
+  defaultVisible: boolean;
+  /** Proportional weight used to compute default percentage width */
+  weight: number;
+  minWidth: number;
+}
+
+const ALL_COLUMNS: ColumnDef[] = [
+  { key: 'date', label: 'Date', defaultVisible: true, weight: 1, minWidth: 80 },
+  { key: 'description', label: 'Description', defaultVisible: true, weight: 4, minWidth: 150 },
+  { key: 'category', label: 'Category', defaultVisible: true, weight: 1.8, minWidth: 100 },
+  { key: 'amount', label: 'Amount', defaultVisible: true, weight: 1.2, minWidth: 80 },
+  { key: 'account', label: 'Account', defaultVisible: false, weight: 1.5, minWidth: 80 },
+  { key: 'source', label: 'Category Source', defaultVisible: false, weight: 1.3, minWidth: 80 },
+];
+
+/** Compute default percentage widths based on weights of visible columns */
+function getDefaultWidths(visibleKeys: Set<ColumnKey>): Record<ColumnKey, number> {
+  const visible = ALL_COLUMNS.filter((c) => visibleKeys.has(c.key));
+  const totalWeight = visible.reduce((sum, c) => sum + c.weight, 0);
+  const widths = {} as Record<ColumnKey, number>;
+  for (const col of ALL_COLUMNS) {
+    widths[col.key] = visibleKeys.has(col.key)
+      ? (col.weight / totalWeight) * 100
+      : (col.weight / totalWeight) * 100; // doesn't matter for hidden cols
+  }
+  return widths;
+}
 
 function formatCents(cents: number): string {
   const abs = Math.abs(cents);
@@ -141,6 +176,95 @@ function TransactionsPage() {
   const [amazonLinkingTxnId, setAmazonLinkingTxnId] = useState<string | null>(
     null
   );
+  const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
+    () => new Set(ALL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key))
+  );
+  // Percentage-based column widths (recalculate defaults when visible columns change)
+  const [columnWidths, setColumnWidths] = useState<Record<ColumnKey, number>>(
+    () => getDefaultWidths(new Set(ALL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)))
+  );
+  const [columnPickerOpen, setColumnPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const resizingRef = useRef<{ key: ColumnKey; startX: number; startPct: number; tableWidth: number } | null>(null);
+
+  // Recalculate proportional widths when column visibility changes
+  const prevVisibleRef = useRef<string>(
+    [...ALL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)].sort().join(',')
+  );
+  useEffect(() => {
+    const currentKey = [...visibleColumns].sort().join(',');
+    if (currentKey !== prevVisibleRef.current) {
+      prevVisibleRef.current = currentKey;
+      setColumnWidths(getDefaultWidths(visibleColumns));
+    }
+  }, [visibleColumns]);
+
+  const handleResizeStart = useCallback((key: ColumnKey, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const tableWidth = tableRef.current?.offsetWidth ?? 800;
+    const startX = e.clientX;
+    const startPct = columnWidths[key];
+    resizingRef.current = { key, startX, startPct, tableWidth };
+
+    const colDef = ALL_COLUMNS.find((c) => c.key === key)!;
+    const minPct = (colDef.minWidth / tableWidth) * 100;
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      const ref = resizingRef.current;
+      if (!ref) return;
+      const deltaPx = ev.clientX - ref.startX;
+      const deltaPct = (deltaPx / ref.tableWidth) * 100;
+      const newPct = Math.max(minPct, ref.startPct + deltaPct);
+      setColumnWidths((prev) => ({ ...prev, [key]: newPct }));
+    };
+
+    const handleMouseUp = () => {
+      resizingRef.current = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [columnWidths]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setColumnPickerOpen(false);
+      }
+    }
+    if (columnPickerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [columnPickerOpen]);
+
+  const toggleColumn = (key: ColumnKey) => {
+    setVisibleColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const cols = ALL_COLUMNS.filter((c) => visibleColumns.has(c.key));
+
+  // Build an account name lookup
+  const accountNameMap: Record<string, string> = {};
+  for (const a of accounts) {
+    accountNameMap[a.id] = a.name;
+  }
 
   const filtered = transactions.filter((txn) => {
     if (
@@ -169,9 +293,41 @@ function TransactionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Transactions</h1>
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} of {transactions.length} transactions
-        </span>
+        <div className="flex items-center gap-3">
+          {/* Column picker */}
+          <div className="relative" ref={pickerRef}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setColumnPickerOpen(!columnPickerOpen)}
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              Columns
+            </Button>
+            {columnPickerOpen && (
+              <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-md border bg-popover p-2 shadow-md">
+                {ALL_COLUMNS.map((col) => (
+                  <label
+                    key={col.key}
+                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-accent cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.has(col.key)}
+                      onChange={() => toggleColumn(col.key)}
+                      className="rounded border-input"
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {filtered.length} of {transactions.length}
+          </span>
+        </div>
       </div>
 
       {/* Filters */}
@@ -192,21 +348,34 @@ function TransactionsPage() {
       </div>
 
       {/* Transaction Table */}
-      <Card>
-        <Table>
+      <Card className="overflow-auto" ref={tableRef}>
+        <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+          <colgroup>
+            {cols.map((col) => (
+              <col key={col.key} style={{ width: `${columnWidths[col.key]}%` }} />
+            ))}
+          </colgroup>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              {cols.map((col) => (
+                <TableHead
+                  key={col.key}
+                  className={`relative select-none ${col.key === 'amount' ? 'text-right' : ''}`}
+                >
+                  {col.label}
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/20 active:bg-primary/30"
+                    onMouseDown={(e) => handleResizeStart(col.key, e)}
+                  />
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={cols.length}
                   className="text-center text-muted-foreground"
                 >
                   No transactions found.
@@ -221,134 +390,191 @@ function TransactionsPage() {
 
                 return (
                   <TableRow key={txn.id}>
-                    <TableCell className="text-muted-foreground align-top">
-                      {txn.date}
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Link
-                            to="/transactions/$id"
-                            params={{ id: txn.id }}
-                            className="text-sm text-foreground hover:text-primary no-underline"
-                          >
-                            {txn.description}
-                          </Link>
-                          {txn.isTransfer && (
-                            <Badge
-                              variant="outline"
-                              className="text-amber-700 border-amber-300 bg-amber-50"
+                    {cols.map((col) => {
+                      switch (col.key) {
+                        case 'date':
+                          return (
+                            <TableCell
+                              key={col.key}
+                              className="text-muted-foreground align-top truncate"
                             >
-                              Transfer
-                            </Badge>
-                          )}
-                          {isAmazon && !isLinkingThis && !hasLinkedOrders && (
-                            <button
-                              className="text-xs text-primary hover:underline cursor-pointer bg-transparent border-none p-0"
-                              onClick={() => setAmazonLinkingTxnId(txn.id)}
-                            >
-                              Link Amazon order
-                            </button>
-                          )}
-                        </div>
+                              {txn.date}
+                            </TableCell>
+                          );
 
-                        {/* Linked Amazon orders display */}
-                        {hasLinkedOrders && !isLinkingThis && (
-                          <div className="space-y-1.5">
-                            {linkedOrders.map((order) => (
-                              <Alert
-                                key={order.id}
-                                className="py-2 px-3 bg-amber-50/50 border-amber-200"
-                              >
-                                <Package className="h-3.5 w-3.5 !text-amber-600" />
-                                <AlertDescription className="flex items-center justify-between gap-2">
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-medium text-foreground truncate">
-                                      {order.itemName}
-                                    </p>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <span>
-                                        {formatCents(order.itemTotal)}
-                                      </span>
-                                      {order.quantity > 1 && (
-                                        <span>Qty: {order.quantity}</span>
-                                      )}
-                                      {order.orderUrl && (
-                                        <a
-                                          href={order.orderUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-0.5 text-primary hover:underline"
-                                        >
-                                          Amazon
-                                          <ExternalLink className="h-2.5 w-2.5" />
-                                        </a>
-                                      )}
-                                    </div>
+                        case 'description':
+                          return (
+                            <TableCell key={col.key} className="align-top overflow-hidden">
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Link
+                                    to="/transactions/$id"
+                                    params={{ id: txn.id }}
+                                    className="text-sm text-foreground hover:text-primary no-underline"
+                                  >
+                                    {txn.description}
+                                  </Link>
+                                  {txn.isTransfer && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-amber-700 border-amber-300 bg-amber-50"
+                                    >
+                                      Transfer
+                                    </Badge>
+                                  )}
+                                  {isAmazon &&
+                                    !isLinkingThis &&
+                                    !hasLinkedOrders && (
+                                      <button
+                                        className="text-xs text-primary hover:underline cursor-pointer bg-transparent border-none p-0"
+                                        onClick={() =>
+                                          setAmazonLinkingTxnId(txn.id)
+                                        }
+                                      >
+                                        Link Amazon order
+                                      </button>
+                                    )}
+                                </div>
+
+                                {/* Linked Amazon orders */}
+                                {hasLinkedOrders && !isLinkingThis && (
+                                  <div className="space-y-1.5">
+                                    {linkedOrders.map((order) => (
+                                      <Alert
+                                        key={order.id}
+                                        className="py-2 px-3 bg-amber-50/50 border-amber-200"
+                                      >
+                                        <Package className="h-3.5 w-3.5 !text-amber-600" />
+                                        <AlertDescription className="flex items-center justify-between gap-2">
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-medium text-foreground truncate">
+                                              {order.itemName}
+                                            </p>
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                              <span>
+                                                {formatCents(order.itemTotal)}
+                                              </span>
+                                              {order.quantity > 1 && (
+                                                <span>
+                                                  Qty: {order.quantity}
+                                                </span>
+                                              )}
+                                              {order.orderUrl && (
+                                                <a
+                                                  href={order.orderUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                                                >
+                                                  Amazon
+                                                  <ExternalLink className="h-2.5 w-2.5" />
+                                                </a>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 text-xs text-muted-foreground hover:text-destructive flex-shrink-0"
+                                            onClick={async () => {
+                                              await unlinkOrderFn({
+                                                data: {
+                                                  amazonOrderId: order.id,
+                                                },
+                                              });
+                                              router.invalidate();
+                                            }}
+                                          >
+                                            Unlink
+                                          </Button>
+                                        </AlertDescription>
+                                      </Alert>
+                                    ))}
+                                    <button
+                                      className="text-xs text-primary hover:underline cursor-pointer bg-transparent border-none p-0"
+                                      onClick={() =>
+                                        setAmazonLinkingTxnId(txn.id)
+                                      }
+                                    >
+                                      Link another order
+                                    </button>
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 text-xs text-muted-foreground hover:text-destructive flex-shrink-0"
-                                    onClick={async () => {
-                                      await unlinkOrderFn({
-                                        data: { amazonOrderId: order.id },
-                                      });
+                                )}
+
+                                {/* Linking panel */}
+                                {isLinkingThis && (
+                                  <AmazonLinkingPanel
+                                    txnId={txn.id}
+                                    txnDate={txn.date}
+                                    txnAmount={txn.amount}
+                                    onClose={() =>
+                                      setAmazonLinkingTxnId(null)
+                                    }
+                                    onLinked={() => {
+                                      setAmazonLinkingTxnId(null);
                                       router.invalidate();
                                     }}
-                                  >
-                                    Unlink
-                                  </Button>
-                                </AlertDescription>
-                              </Alert>
-                            ))}
-                            <button
-                              className="text-xs text-primary hover:underline cursor-pointer bg-transparent border-none p-0"
-                              onClick={() => setAmazonLinkingTxnId(txn.id)}
-                            >
-                              Link another order
-                            </button>
-                          </div>
-                        )}
+                                  />
+                                )}
+                              </div>
+                            </TableCell>
+                          );
 
-                        {/* Linking panel */}
-                        {isLinkingThis && (
-                          <AmazonLinkingPanel
-                            txnId={txn.id}
-                            txnDate={txn.date}
-                            txnAmount={txn.amount}
-                            onClose={() => setAmazonLinkingTxnId(null)}
-                            onLinked={() => {
-                              setAmazonLinkingTxnId(null);
-                              router.invalidate();
-                            }}
-                          />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      {txn.isTransfer ? (
-                        <span className="text-xs text-muted-foreground">
-                          —
-                        </span>
-                      ) : (
-                        <CategoryCell
-                          txnId={txn.id}
-                          categoryId={txn.categoryId}
-                          categoryName={txn.categoryName}
-                          categoryColor={txn.categoryColor}
-                          categories={categories}
-                          onAssigned={() => router.invalidate()}
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell
-                      className={`text-right font-medium align-top ${
-                        txn.amount >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {formatCents(txn.amount)}
-                    </TableCell>
+                        case 'category':
+                          return (
+                            <TableCell key={col.key} className="align-top">
+                              {txn.isTransfer ? (
+                                <span className="text-xs text-muted-foreground">
+                                  —
+                                </span>
+                              ) : (
+                                <CategoryCell
+                                  txnId={txn.id}
+                                  categoryId={txn.categoryId}
+                                  categoryName={txn.categoryName}
+                                  categoryColor={txn.categoryColor}
+                                  categories={categories}
+                                  onAssigned={() => router.invalidate()}
+                                />
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'amount':
+                          return (
+                            <TableCell
+                              key={col.key}
+                              className={`text-right font-medium align-top ${
+                                txn.amount >= 0
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                              }`}
+                            >
+                              {formatCents(txn.amount)}
+                            </TableCell>
+                          );
+
+                        case 'account':
+                          return (
+                            <TableCell
+                              key={col.key}
+                              className="text-sm text-muted-foreground align-top truncate"
+                            >
+                              {accountNameMap[txn.accountId] ?? txn.accountId}
+                            </TableCell>
+                          );
+
+                        case 'source':
+                          return (
+                            <TableCell
+                              key={col.key}
+                              className="text-xs text-muted-foreground align-top truncate"
+                            >
+                              {txn.categorySource ?? '—'}
+                            </TableCell>
+                          );
+                      }
+                    })}
                   </TableRow>
                 );
               })
