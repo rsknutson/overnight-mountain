@@ -10,7 +10,7 @@
 
 ## Booking Request
 
-![](Guest%20Communication/image%201.png)
+![](images/image%201.png)
 
 - Read their booking request message, clear up any details
 - Make sure the price is reasonable (Compare with daily price from year before)
@@ -20,11 +20,11 @@
 
 ## Thermostat question
 
-![](Guest%20Communication/image%202.png)
+![](images/image%202.png)
 
 ## Query about parking and safety
 
-![](Guest%20Communication/IMG_4252.png)
+![](images/IMG_4252.png)
 
 ## Query about deals, special prices etc
 
@@ -32,9 +32,9 @@ Answer: we do not provide deals outside of our booking platform pricing.
 
 ## Query about noise level
 
-![](Guest%20Communication/IMG_4254.png)
+![](images/IMG_4254.png)
 
-![](Guest%20Communication/IMG_4253.png)
+![](images/IMG_4253.png)
 
 ## Code is not working
 
@@ -62,7 +62,7 @@ When done, Zelle the cost to Christina, TODo: set up a set amount for her
 
 Edit code in hospitable (click edit)
 
-![](Guest%20Communication/image%203.png)
+![](images/image%203.png)
 
 ## Someone checking in and out on same day
 
@@ -81,7 +81,7 @@ Usually always accept alteration requests, only exceptions are if they have been
 
 If they ask, direct them to create a request
 
-![](Guest%20Communication/image%204.png)
+![](images/image%204.png)
 
 ## Cleaning Complaint
 
