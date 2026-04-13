@@ -2,7 +2,7 @@
 
 ## Remote control lost
 
-![](Guest%20Communication/image.png)
+![](images/image.png)
 
 1. Ask them to check out stock in front door closet 
 2. If none there, order new ones and ask Christina to restock location
