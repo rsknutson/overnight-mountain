@@ -1,4 +1,4 @@
-## Repairs (handled by VA)
+## Repairs
 
 - Christina or Guest notifies of something broken
 - Contact local handyman via our contact or just thumbtack and add to our list
